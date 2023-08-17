@@ -1,0 +1,62 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+
+def clean_text(text):
+    return text.replace('\n', ' ').replace('\r', '').strip()
+
+def scrape_page(url):
+    response = requests.get(url)
+    response = requests.get(url)
+    soup=BeautifulSoup(requests.get("https://www.contractsfinder.service.gov.uk/Search/Results").text,"lxml" )
+    search_results = soup.find_all("div", class_="search-result")
+    scraped_data = []
+
+    for result in search_results:
+        title_element = result.find("h2").find("a")
+        title = clean_text(title_element.get_text())
+        # link = title_element["href"]  # If you want to include the link
+        
+        sub_header = clean_text(result.find(class_="search-result-sub-header").get_text())
+        
+        contract_location_element = result.find(string="Contract location")
+        contract_location = clean_text(contract_location_element.find_next("div").get_text().strip()) if contract_location_element else "N/A"
+        
+        contract_value_element = result.find("div", class_="search-result-value", string="Contract value")
+        contract_value = clean_text(contract_value_element.find_next("div").get_text().strip()) if contract_value_element else "N/A"
+        
+        publication_date_element = result.find("div", class_="search-result-value", string="Publication date")
+        publication_date = clean_text(publication_date_element.find_next("div").get_text().strip()) if publication_date_element else "N/A"
+        
+        data = {
+            "Title": title,
+            # "Link": link,
+            "Sub Header": sub_header,
+            "Contract Location": contract_location,
+            "Contract Value": contract_value,
+            "Publication Date": publication_date
+        }
+        scraped_data.append(data)
+    
+    return scraped_data
+
+# Example URL, replace with the actual URL of the search results page
+base_url = "https://www.contractsfinder.service.gov.uk/Search/Results"
+
+# Loop through all pages and scrape data
+total_pages = 5  # Replace this with the actual total number of pages
+
+csv_filename = "scraped_data.csv"
+with open(csv_filename, mode="w", newline="", encoding="utf-8") as csv_file:
+    fieldnames = ["Title", "Sub Header", "Contract Location", "Contract Value", "Publication Date"]
+    csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+    csv_writer.writeheader()
+
+    for page_number in range(1, total_pages + 1):
+        url = f"{base_url}&page={page_number}"
+        scraped_data = scrape_page(url)
+        
+        for data in scraped_data:
+            csv_writer.writerow(data)
+
+print(f"Data saved to '{csv_filename}'")
